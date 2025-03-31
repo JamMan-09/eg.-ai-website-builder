@@ -1,0 +1,130 @@
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/JamMan-09/ai-website-builder.git
+git push -u origin main
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe("your-stripe-public-key");
+const businessTypes = ["Restaurant", "E-commerce", "Fitness", "Local Service", "Real Estate", "Plumbing", "Electrical", "Solar"];
+
+export default function LandingPage() {
+  const [businessType, setBusinessType] = useState("");
+  const [generatedSite, setGeneratedSite] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [userInput, setUserInput] = useState("");
+
+  const generateSite = () => {
+    if (!businessType) return;
+    let siteTemplate = `Generated website for ${businessType} with AI-powered content and chatbot.`;
+    
+    if (["Plumbing", "Electrical", "Solar", "Restaurant"].includes(businessType)) {
+      siteTemplate += " Includes automated scheduling and AI phone service for handling customer inquiries.";
+    }
+    
+    setGeneratedSite(siteTemplate);
+  };
+
+  const handleCheckout = async (priceId) => {
+    const stripe = await stripePromise;
+    const response = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priceId }),
+    });
+    const session = await response.json();
+    await stripe.redirectToCheckout({ sessionId: session.id });
+  };
+
+  const sendMessage = async () => {
+    if (!userInput.trim()) return;
+    const newMessages = [...chatMessages, { sender: "User", text: userInput }];
+    setChatMessages(newMessages);
+    setUserInput("");
+    
+    const response = await fetch("/api/chatbot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: userInput }),
+    });
+    
+    const data = await response.json();
+    setChatMessages([...newMessages, { sender: "AI", text: data.response }]);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center text-center p-6">
+      <h1 className="text-4xl font-bold text-blue-600">AI-Powered Website Builder</h1>
+      <p className="text-lg mt-4 max-w-2xl">Effortlessly create stunning, high-converting websites with AI. No coding. No hassle. Just results.</p>
+      
+      <Button className="mt-6 px-6 py-3 text-lg">Start Your Free Trial</Button>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-xl font-bold">AI-Generated Websites</h2>
+            <p className="mt-2">Tell us your business type, and our AI designs the perfect site for you.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-xl font-bold">Smart AI Chatbots</h2>
+            <p className="mt-2">Convert visitors into customers with AI-powered assistance.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-xl font-bold">Subscription-Based Growth</h2>
+            <p className="mt-2">Affordable plans that scale with your business success.</p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* AI Website Generator */}
+      <div className="mt-12 max-w-4xl">
+        <h2 className="text-3xl font-bold">Generate Your AI Website</h2>
+        <select 
+          className="border p-2 w-full my-2" 
+          onChange={(e) => setBusinessType(e.target.value)}
+          value={businessType}
+        >
+          <option value="">Select Your Business Type...</option>
+          {businessTypes.map((type) => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+        </select>
+        <Button onClick={generateSite} className="w-full mt-2">Generate Website</Button>
+        {generatedSite && (
+          <div className="mt-4 p-4 border rounded bg-gray-100">
+            <h2 className="text-lg font-bold">Your AI-Generated Website</h2>
+            <p>{generatedSite}</p>
+          </div>
+        )}
+      </div>
+      
+      {/* AI Chatbot */}
+      <div className="mt-12 max-w-lg w-full border p-4 rounded bg-white">
+        <h2 className="text-2xl font-bold">AI Chatbot</h2>
+        <div className="chat-box h-60 overflow-y-auto border p-2 mt-2">
+          {chatMessages.map((msg, index) => (
+            <div key={index} className={`p-2 ${msg.sender === "AI" ? "text-blue-600" : "text-gray-800"}`}>
+              <strong>{msg.sender}:</strong> {msg.text}
+            </div>
+          ))}
+        </div>
+        <input 
+          type="text" 
+          className="w-full p-2 border mt-2" 
+          placeholder="Ask a question..." 
+          value={userInput} 
+          onChange={(e) => setUserInput(e.target.value)}
+        />
+        <Button onClick={sendMessage} className="w-full mt-2">Send</Button>
+      </div>
+    </div>
+  );
+}
